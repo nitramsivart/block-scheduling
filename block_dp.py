@@ -1,19 +1,21 @@
-from pydot import Dot, Node, Edge
+import pydot as _pd
 
 """
-Working file
+Working File
+
+<<< TODO >>>
+Decide what to do about ties in utility:
+- Break ties as Yes
+- Break ties as No * < Current Choice >
+- Break ties with a 50/50 split (needs some slight implementation
+    changes)
+
+Decide how self loops are handeled. See TODO on the recursive edge
+case in node choice.
 
 Right now this computes everything on the fly as requested, so
 amortized time. Overall time could be fixed by precomputing everything
 (even areas that are never reached?)
-
-This also ignores self loops, which may be important??? So even if you
-have a nonzero block diagonal term, the true diagonal is still
-zero. It should be trivial to fix, but I figured this made more
-sense??
-
-Right now this breaks ties in nodes choosing to go to yes, it does not
-have a way to mark that a node picks with probability .5
 
 This also has the scheduler automatically picking the last block in
 the event of a tie. This maybe doesn't matter because the distinction
@@ -23,9 +25,9 @@ Yes = True
 No  = False
 """
 
-class optimalScheduler:
+class StrategicBlockCascadeSolver:
     """
-    An optimal scheduler
+    An optimal polytime solver for block models
 
     You can give it a game, and it will compute the optimal schedule
     as well as the optimal strategy for any node given its type and
@@ -60,229 +62,250 @@ class optimalScheduler:
 
     """
 
-    def __init__(self, p, pi, sizes, blockAdj):
+    def __init__(self, p, pi, blockSizes, blockAdjacency):
         """
         Initialize scheduler object
 
-        p        = probability of generating a Yes Type
-        pi       = utility for choosing ones own Type
-        sizes    = list of the sizes of each block (length B)
-        blockAdj = block adjacency matrix (BxB double list) This can be
-            asymetric and contain any non negative weights
+        p              = probability of generating a Yes Type
+        pi             = utility for choosing ones own Type
+        blockSizes     = tuple of the sizes of each block (length B)
+        blockAdjacency = block adjacency matrix (BxB double tuple) This
+            can be asymetric and contain any non negative weights
         """
-        self.p        = p
-        self.pi       = pi
-        self.sizes    = sizes
-        self.blockAdj = blockAdj
-        self.B        = len(sizes)
-        self.data     = {} # DP table for node choices
-        self.sched    = {} # DP table for scheduler choices
+        self.p  = p
+        self.pi = pi
+        self.bs = blockSizes
+        self.ba = blockAdjacency
+        self.B  = len(blockSizes)
+        self.nc = {} # DP table for optimal node choices
+        self.bc = {} # DP table for optimal scheduler block choices
 
-        assert len(blockAdj) ==self. B
-        assert all(len(x) == self.B for x in blockAdj)
+        assert len(self.ba) == self. B
+        assert all(len(row) == self.B for row in self.ba)
+        assert type(self.bs) is tuple, "BlockSizes must be a tuple"
+        assert type(self.ba) is tuple, "BlockAdjacency must be a tuple"
+        assert all(type(row) is tuple for row in self.ba)
 
-    def query(self, ns, b, ys, t):
-        """
-        Query the optimal play of a node
-
-        ns = list of the number of nodes of each block that have
-            chosen so far (length B). This includes the node that is
-            choosing now
-        b  = block of the node that is choosing now (ns[b] should be 1
-            greater than you might think
-        ys = list of the number of nodes in each block that have chosen
-            yes (length B). ys_i <= ns_i for all i
-        t  = type of the node choosing (True = Yes, False = No)
-        """
+    def nodeChoice(self, b, t, ns, ys):
+        """ HELP! """
         assert len(ns) == self.B
-        assert all(x >= 0 for x in ns)
-        assert all(x <= y for x, y in zip(ns, self.sizes))
-        assert ns[b] > 0
+        assert all(n >= 0 for n in ns)
+        assert all(n <= s for n, s in zip(ns, self.bs))
+        assert sum(ns) < sum(self.bs)
         assert 0 <= b and b < self.B
         assert len(ys) == self.B
-        assert all(x >= 0 for x in ys)
-        assert all(x <= y for x, y in zip(ys, ns))
-        assert ys[b] < ns[b]
+        assert all(y >= 0 for y in ys)
+        assert all(y <= n for y, n in zip(ys, ns))
+        assert type(ns) is tuple
+        assert type(ys) is tuple
 
-        # Dive represents a pointer to the current depth in the "data"
-        # dictionary. Since things are computed on the fly, at each
-        # step it has to check whether or not a branch exists before
-        # it can traverse it. It adds branches it's never seen.
-        dive = self.data
-        for i in ns:
-            if i not in dive:
-                dive[i] = {}
-            dive = dive[i]
-        if b not in dive:
-            dive[b] = {}
-        dive = dive[b]
-        for i in ys:
-            if i not in dive:
-                dive[i] = {}
-            dive = dive[i]
-        if t in dive:
-            # We've already computed the value, and so we return it
-            return dive[t]
-        # Haven't already computed the value, so we need to
+        # Check if the solution is already computed
+        key = (b, t, ns, ys)
+        if key in self.nc:
+            return self.nc[key] # Found it!
 
-        if all(x == y for x, y in zip(ns, self.sizes)):
+        # Have to compute solution :(
+
+        # <<< TODO >>>
+        #
+        # This is not the right check! It should check that
+        # specifically ns_b is one less than self.bs_b
+        if sum(ns) == sum(self.bs) - 1:
             # Recursive edge case. There are no nodes to pick after
             # this, so it just performs a myopic decision.
-            ns_ = ns[:]
-            ns_[b] -= 1 # One less "No" on block b because of self
-            un = sum(a*(n - y) for a,y,n in zip(self.blockAdj[b], ys,
-                ns_)) + (self.pi if not t else 0)
-            uy = sum(a*y for a,y in zip(self.blockAdj[b], ys)) + (self.pi
+
+            # <<< TODO >>>
+            # Figure out if this is correct. Right now it doesn't
+            # factor its own decision into its objective. The purpose
+            # of this is to remove self loops when there is a nonzero
+            # diagonal term. This might not accomplish this, and may
+            # make this calculation innacurate.
+            un = sum(a*(n - y) for a,y,n in zip(self.ba[b], ys,
+                ns)) + (self.pi if not t else 0)
+            uy = sum(a*y for a,y in zip(self.ba[b], ys)) + (self.pi
                 if t else 0)
 
-            choice = uy >= un # Choose Y
-            Ey = map(float, ys) # Expected / actual number of Y's
+            # Choose Y when...
+            choice = uy > un
+            # Expected / actual number of Y's by block
+            Ey_b = [float(y) for y in ys]
             if choice:
-                Ey[b] += 1
+                Ey_b[b] += 1
             # Store result of computation
-            dive[t] = (choice, Ey)
+            result = (choice, tuple(Ey_b))
+            self.nc[key] = result
+            return result
         else:
             # Not last to pick. Must look over choice of yes and
             # choice of no to decide which is better in expected value
             # knowing scheduler choices
 
             # Utility for choosing No
-            _, Eyl_N = self.nextBlock(ns, ys) #E[Y|N]
-            un = sum(a * (n - y) for a,y,n in zip(self.blockAdj[b],
-                Eyl_N, self.sizes)) + (self.pi if not t else 0)
+            _ns = list(ns)
+            _ns[b] += 1
+            _ns = tuple(_ns)
+
+            _, Ey_bN = self.blockChoice(_ns, ys) #E[Y|N] by block
+            un = sum(a * (s - y) for a,y,s in zip(self.ba[b], Ey_bN,
+                    self.bs)) + (self.pi if not t else 0)
 
             # Utility for choosing Yes
             # If this node chooses Yes, one more yes in its block
-            ys_ = ys[:]
-            ys_[b] += 1
-            _, Eyl_Y = self.nextBlock(ns, ys_) #E[Y|Y]
-            uy = sum(a * y for a,y,n in zip(self.blockAdj[b],
-                Eyl_Y, self.sizes)) + (self.pi if t else 0)
+            _ys = list(ys)
+            _ys[b] += 1
+            _ys = tuple(_ys)
 
-            choice = uy >= un # Optimal choice
-            # Save results
-            dive[t] = (choice, Eyl_Y if choice else Eyl_N)
-        return dive[t]
+            _, Ey_bY = self.blockChoice(_ns, _ys) #E[Y|Y] by block
+            uy = sum(a * y for a,y in zip(self.ba[b], Ey_bY)
+                     ) + (self.pi if t else 0)
 
-    def nextBlock(self, ns, ys):
-        """
-        Determines which block should be picked next
+            # Choose Y when
+            choice = uy > un
+            # Store results of computation
+            result = (choice, Ey_bY if choice else Ey_bN)
+            self.nc[key] = result
+            return result
 
-        Maximizes the expected number of yeses, conditioned on the
-        current state of the world
+    def blockChoice(self, ns, ys):
+        """ HELP """
 
-        ns = Number of nodes that have already picked up to this point,
-            by block. For the first choice this is [0] * B
-        ys = Number of yes nodes that have already picked up to this
-            point. For the first choice this is also [0] * B
+        assert len(ns) == self.B
+        assert all(n >= 0 for n in ns)
+        assert all(n <= s for n, s in zip(ns, self.bs))
+        assert sum(ns) < sum(self.bs)
+        assert len(ys) == self.B
+        assert all(y >= 0 for y in ys)
+        assert all(y <= n for y, n in zip(ys, ns))
+        assert type(ns) is tuple
+        assert type(ys) is tuple
 
-        scheduler.nextBlock([0] * B, [0] * B) will return the optimal
-        block to pick first as well as the expected number of yeses in
-        each block before the first node has picked.
-        """
+        # Check if solution is already computed
+        key = (ns, ys)
+        if key in self.bc:
+            return self.bc[key] # Found it!
 
-        dive = self.sched
-        for i in ns:
-            if i not in dive:
-                dive[i] = {}
-            dive = dive[i]
-        for i in ys:
-            if i not in dive:
-                dive[i] = {}
-            dive = dive[i]
-        if not dive: # Have to compute
+        # Have to compute :(
+        b    = -1
+        Ey   = 0 # Total expected number of Yeses
+        Ey_b = () # Expected number of yeses by block
 
-            b = -1
-            Ey  = 0 # Total expected number of Yeses
-            Eyl = [] # Expected number of yeses by block
+        # Iterate over all possible choices of next schedule
+        for i,n,s in zip(xrange(self.B), ns, self.bs):
+            if n == s:
+                # Can't pick any other nodes in this block because
+                # they've all been chosen
+                continue
 
-            # Iterate over all choises of next schedule
-            for i,n,s in zip(xrange(self.B), ns, self.sizes):
-                if n == s:
-                    # Can't pick any other nodes in this block because
-                    # they've all been chosen
-                    continue
+            # Find expected number of yeses if we choose a node from
+            # block i
 
-                # Find expected number of yeses if we choose a node from
-                # block i
-                ns_ = ns[:]
-                ns_[i] += 1 # Incriment number of chosen for block i
+            # Get expected number of yeses if the node chosen is a
+            # yes or a no
+            _, Ey_bY = self.nodeChoice(i, True,  ns, ys)
+            _, Ey_bN = self.nodeChoice(i, False, ns, ys)
 
-                # Get expected number of yeses if the node chosen is a
-                # yes or a no
-                _, cy = self.query(ns_, i, ys, True)
-                _, cn = self.query(ns_, i, ys, False)
+            # Weight expected number of nodes by the probability of
+            # getting a Yes or No type
+            _Ey_b = tuple(self.p * y + (1 - self.p) * n for y, n in
+                         zip(Ey_bY, Ey_bN))
+            _Ey = sum(_Ey_b)
 
-                # Weight expected number of nodes by the probability of
-                # getting a Yes or No type
-                Eyl_ = [self.p * y + (1 - self.p) * n for y,n in zip(cy,
-                    cn)]
-                Ey_ = sum(Eyl_)
+            # If expected number of yeses is greater than the best
+            # decision found so far, replace it
+            if _Ey >= Ey:
+                b, Ey, Ey_b = i, _Ey, _Ey_b
 
-                # If expected number of yeses is better than the best
-                # decision found so far, replace it
-                if Ey_ >= Ey:
-                    b, Ey, Eyl = i, Ey_, Eyl_
+        # Store optimal choice for this state
+        self.bc[key] = (b, Ey_b)
+        return b, Ey_b
 
-            # Store optimal choice for this setting
-            dive[b] = Eyl
+    def printNodeChoice(self):
+        """ HELP """
+        for k,v in self.nc.iteritems():
+            print k,v
 
-        for b, Eyl in dive.iteritems():
-            return b, Eyl
+    def writeNaiveOnlineScheduleTree(self, filename, depth=5):
+        """ HELP """
 
-    def dataPrint(self):
-        """
-        Print DP tables / count space complexity
-
-        Currently has very messy output... Could easily be cleaned up.
-        """
-        print _dataPrint((), self.data)
-
-    def scheduleTree(self, filename, depth=5):
-        g = Dot('G', graph_type='digraph')
-        self._scheduleTree(g, [0]*self.B, [0]*self.B, 1, depth)
+        g = _pd.Dot('G', graph_type='digraph')
+        self._writeNaiveOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B,
+                                           1, depth)
+        # <<< TODO >>>
+        #
+        # Filename extension checking
         g.write_pdf(filename)
 
-    def _scheduleTree(self, g, ns, ys, num, depth):
+    def _writeNaiveOnlineScheduleTree(self, g, ns, ys, num, depth):
+        """ HELP """
+
         # Terminal condition
-        if all(s == n for s,n in zip(self.sizes, ns)):
-            g.add_node(Node(str(num), label="N/A"))
+        if all(s == n for s,n in zip(self.bs, ns)):
+            g.add_node(_pd.Node(str(num), label="N/A"))
             return
         # Non terminal
-        b,_ = self.nextBlock(ns, ys)
-        g.add_node(Node(str(num), label=str(b)))
+        b,_ = self.blockChoice(ns, ys)
+        g.add_node(_pd.Node(str(num), label=str(b)))
         # Max depth reached?
+        depth -= 1
         if depth <= 0:
             return
         # Calculate No path
-        g.add_edge(Edge(str(num), str(num*2), label="No"))
-        ns_ = ns[:]
-        ns_[b] += 1
-        self._scheduleTree(g, ns_, ys, num*2, depth-1)
+        g.add_edge(_pd.Edge(str(num), str(num*2), label="No"))
+        _ns = list(ns)
+        _ns[b] += 1
+        _ns = tuple(_ns)
+        self._writeNaiveOnlineScheduleTree(g, _ns, ys, num*2, depth)
         # Calculate Yes path
-        g.add_edge(Edge(str(num), str(num*2 + 1), label="Yes"))
-        ys_ = ys[:]
-        ys_[b] += 1
-        self._scheduleTree(g, ns_, ys_, num*2+1, depth-1)
+        g.add_edge(_pd.Edge(str(num), str(num*2 + 1), label="Yes"))
+        _ys = list(ys)
+        _ys[b] += 1
+        _ys = tuple(_ys)
+        self._writeNaiveOnlineScheduleTree(g, _ns, _ys, num*2+1, depth)
 
-def _dataPrint(parent, tree):
-    """
-    Recursive Helper Method
-    """
-    if type(tree) is dict:
-        leaves = 0
-        for key, child in tree.iteritems():
-            leaves += _dataPrint((key, parent), child)
-        return leaves
-    else:
-        l = _tup2list(parent)
-        print l,tree[0], tree[1]
-        return 1
+    def writeImpossiblePrunedOnlineScheduleTree(self, filename, depth=5):
+        """ HELP """
 
-def _tup2list(tup):
-    l = []
-    while tup:
-        l.append(tup[0])
-        tup = tup[1]
-    l.reverse()
-    return l
+        g = _pd.Dot('G', graph_type='digraph')
+        self._writeImpossiblePrunedOnlineScheduleTree(g, (0,)*self.B,
+            (0,)*self.B, 1, depth)
+        # <<< TODO >>>
+        #
+        # Filename extension checking
+        g.write_pdf(filename)
+
+    def _writeImpossiblePrunedOnlineScheduleTree(self, g, ns, ys, num,
+                                                 depth):
+        """ HELP """
+
+        # Terminal condition
+        if all(s == n for s,n in zip(self.bs, ns)):
+            g.add_node(_pd.Node(str(num), label="N/A"))
+            return
+        # Non terminal
+        b = self.blockChoice(ns, ys)[0]
+        g.add_node(_pd.Node(str(num), label=str(b)))
+        # Max depth reached?
+        depth -= 1
+        if depth <= 0:
+            return
+        # Calculate No path
+        if not self.nodeChoice(b, False, ns, ys)[0]:
+            # It's only possible for a strategic node to choose No if
+            # a No type node chooses No, because if a No node chooses
+            # Yes, then a Yes node will certainly choose Yes.
+            g.add_edge(_pd.Edge(str(num), str(num*2), label="No"))
+            _ns = list(ns)
+            _ns[b] += 1
+            _ns = tuple(_ns)
+            self._writeImpossiblePrunedOnlineScheduleTree(g, _ns, ys,
+                                                          num*2, depth)
+        # Calculate Yes path
+        if self.nodeChoice(b, True, ns, ys)[0]:
+            # See explanation above for why this is suficient to
+            # guarentee that it's possible for a node to choose Yes.
+            g.add_edge(_pd.Edge(str(num), str(num*2 + 1), label="Yes"))
+            _ys = list(ys)
+            _ys[b] += 1
+            _ys = tuple(_ys)
+            self._writeImpossiblePrunedOnlineScheduleTree(g, _ns, _ys,
+                                                          num*2+1, depth)
