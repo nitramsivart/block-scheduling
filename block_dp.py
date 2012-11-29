@@ -1,7 +1,24 @@
 import pydot as _pd
 
 """
-Working File
+Caveat, this is a working file
+
+The structure of this file is Object Oriented. You can construct a
+StrategicBlockCascadeSolver with all of the settings of a game (p, pi,
+and a definition of the block graph) and then call various methods to
+figure out what a strategic agent will choose in a given situation.
+
+The algorithms are based on dynamic programming methods, but are not
+precomputed. This means the first time you call a method it may take a
+long time to return a result, but subsequent calls will be fast
+because the result is stored. Calculating a result will likely result
+in the caculation of several other answers, meaning while your first
+call may take a long time, many differeny subsequent calls will be
+fast.
+
+The data paradigm for this is to always use tuples. Most methods will
+return an assertion error if you don't. True is synonomyous with Yes,
+and False is synonomyous with No.
 
 <<< TODO >>>
 Decide what to do about ties in utility:
@@ -13,64 +30,62 @@ Decide what to do about ties in utility:
 Decide how self loops are handeled. See TODO on the recursive edge
 case in node choice.
 
-Right now this computes everything on the fly as requested, so
-amortized time. Overall time could be fixed by precomputing everything
-(even areas that are never reached?)
-
-This also has the scheduler automatically picking the last block in
-the event of a tie. This maybe doesn't matter because the distinction
-should be arbitrary, but it's worth noting.
-
-Yes = True
-No  = False
+Add assertion error messages
 """
 
 class StrategicBlockCascadeSolver:
     """
-    An optimal polytime solver for block models
+    This object is an optimal polynomial time solver of a specific
+    cascade game on block model graphs. The running time is
+    exponential in the number of blocks, so making the number of
+    blocks to large is likely beyond the scope of this algorithm.
 
-    You can give it a game, and it will compute the optimal schedule
-    as well as the optimal strategy for any node given its type and
-    current state of the world
+    Computation is ammortized, so some calls may take a long time
+    while others will be almost instanious. It mainly depends on much
+    computation has already been done. Later calls on the same object
+    are likely to be faster.
 
-    It uses dynamic programming to do all computation. Results of
-    computation are stored in a large multidimmensional dictionary
-    that it uses to look up values it's already computed. That
-    dictionary is called "data" inside the object.
+    Variable Definitions
+    --------------------
+    * B is the number of blocks in the block model.
 
-    Where B is the number of blocks, "data" is organized as follows:
+    Example Use
+    -----------
 
-    The first B dimensions are n_b, or the number of nodes in each
-    block that have already chosen (including the current node)
-
-    The next dimension is the block of the current node choosing
-
-    The next B dimmensions are the y_b, or the number of nodes in each
-    block that have chosen Yes.
-
-    The last queryable dimension is the type of the node. True for Yes
-    and False for No.
-
-    The result of all of these dimensions is a tuple. The first
-    element is True or False for whether Yes is the optimal
-    choice. The second is a list of the expected number of Yeses in
-    each block after this decision has been made.
-
-    Ideally the return value would be extended to contain a third
-    value if the node is undecided, and represent the expected value
-    accordingly.
-
+    import block_dp as bdp
+    p  = 0.4
+    pi = 0.5
+    # This is an 11 node wheel graph
+    s  = (1, 10)
+    a  = ((0, 1),(1, 0))
+    solver = block_dp.StrategicBlockCascadeSolver(p, pi, s, a)
+    solver.blockChoice((0,)*2,(0,)*2)
+    >>> (1, (0.4, 4.0))
+    # This return value means you should pick a node in the outside of
+    # the wheel first. By doing so you expect to convert 0.4 of the
+    # center nodes and 4 of the outer nodes to Yes
+    solver.writeImpossiblePrunedOnlineScheduleTree('tree.pdf')
+    # This will save a pdf called 'tree.pdf' that represents the
+    # decision tree as the center node based on what individual nodes
+    # pick. Paths that never get chosen are pruned from consideration
+    # and so you will never see paths that strategic agents will never
+    # choose
     """
 
     def __init__(self, p, pi, blockSizes, blockAdjacency):
         """
-        Initialize scheduler object
+        Create Solver Object
 
-        p              = probability of generating a Yes Type
-        pi             = utility for choosing ones own Type
+        bdp.StrategicBlockCascadeSolver(p, pi, bs, bs)
+
+        Parameters
+        ----------
+        p              = probability of a node being a Yes Type (<.5)
+        pi             = a nodes utility for choosing ones own Type
         blockSizes     = tuple of the sizes of each block (length B)
         blockAdjacency = block adjacency matrix (BxB double tuple) This
-            can be asymetric and contain any non negative weights
+                         can be asymetric and contain any non negative
+                         weights
         """
         self.p  = p
         self.pi = pi
@@ -80,14 +95,41 @@ class StrategicBlockCascadeSolver:
         self.nc = {} # DP table for optimal node choices
         self.bc = {} # DP table for optimal scheduler block choices
 
-        assert len(self.ba) == self. B
-        assert all(len(row) == self.B for row in self.ba)
+        assert p >= 0 and p <= 0.5, "p must be between 0 and 0.5"
+        assert pi > 0, "pi must be greater than 0"
+        assert len(self.ba) == self.B, "BlockAdjacency must be BxB"
+        assert all(len(row) == self.B for row in self.ba), "BlockAdjacency must be BxB"
         assert type(self.bs) is tuple, "BlockSizes must be a tuple"
         assert type(self.ba) is tuple, "BlockAdjacency must be a tuple"
-        assert all(type(row) is tuple for row in self.ba)
+        assert all(type(row) is tuple for row in self.ba), "BlockAdjacency must be a tuple"
+        assert all(all(e >= 0 for e in row) for row in self.ba), "All elements in BlockAdjacency have to be nonnegative"
 
     def nodeChoice(self, b, t, ns, ys):
-        """ HELP! """
+        """
+        Returns the optimal (yes/no) choice of a node
+
+        solver.nodeChoice(b, t, ns, ys)
+
+        Parameters
+        ----------
+        b  = Block membership of the node who's choosing [0,B)
+        t  = Type of the node {True, False}
+        ns = B length tuple of the number of nodes in each block that
+             have alreay gone. This total does NOT include the node
+             choosing now
+        ys = B length tuple of the number of nodes in each block that
+             have already gone and chosen Yes. This total does NOT
+             include the node choosing now
+
+        Return Values
+        -------------
+        choice = The Yes (True) or No (False) that coresponds to the
+                 nodes optimal strategic choice
+        Ey_b   = A B length tuple of the expected number of Yes nodes
+                 in each block at the end of the game if the scheduler
+                 and the nodes are all playing strategically
+        """
+
         assert len(ns) == self.B
         assert all(n >= 0 for n in ns)
         assert all(n <= s for n, s in zip(ns, self.bs))
@@ -167,7 +209,27 @@ class StrategicBlockCascadeSolver:
             return result
 
     def blockChoice(self, ns, ys):
-        """ HELP """
+        """
+        Returns the optimal [0,B) choice of a block of nodes for the
+        scheduler to pick next
+
+        solver.blockChoice(ns, ys)
+
+        Parameters
+        ----------
+        ns = B length tuple of the number of nodes in each block that
+             have alreay gone.
+        ys = B length tuple of the number of nodes in each block that
+             have already gone and chosen Yes.
+
+        Return Values
+        -------------
+        choice = A [0,B) integer corresponding to the optimal choice of
+                 node block for the scheduler
+        Ey_b   = A B length tuple of the expected number of Yes nodes
+                 in each block at the end of the game if the scheduler
+                 picks this node
+        """
 
         assert len(ns) == self.B
         assert all(n >= 0 for n in ns)
@@ -220,92 +282,141 @@ class StrategicBlockCascadeSolver:
         return b, Ey_b
 
     def printNodeChoice(self):
-        """ HELP """
+        """
+        Prints a long table of the optimal node choices
+
+        solver.printNodeChoice()
+
+        The resulting table is the value for all scenarios that have
+        already been computed. There will be 3B + 3 columns and
+        len(bdp.nc) rows.
+
+        Column order is b, t, ns, ys, choice, Ey_b or Block, Type,
+        Number Already Chosen by Block, Number of Yesses by Block,
+        Optimal Choice, Expected Number of Yesses by Block.
+        """
+
         for k,v in self.nc.iteritems():
             print k,v
 
-    def writeNaiveOnlineScheduleTree(self, filename, depth=5):
-        """ HELP """
+    def writeOnlineScheduleTree(self, filename, depth=5, prune=True):
+        """
+        Writes a tree of the optimal decisions for the scheduler
+
+        solver.writeImpossiblePrunedOnlineScheduleTree(filename)
+        solver.writeImpossiblePrunedOnlineScheduleTree(filename, depth):
+        solver.writeImpossiblePrunedOnlineScheduleTree(filename, depth,
+                                                       prune):
+
+        Parameters
+        ----------
+        filename = The filename to save the pdf as. You must include the
+                   .pdf extension, or most programs probably won't
+                   recognize it
+        depth    = Optional. The maximum depth the tree will descend to.
+                   Defaults to 5.
+        prune    = Optional. Whether or not to prune subtrees strategic
+                   node will never choose. Defaults to True.
+        """
 
         g = _pd.Dot('G', graph_type='digraph')
-        self._writeNaiveOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B,
-                                           1, depth)
+        self._writeOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B, 1,
+                                      depth, prune)
         # <<< TODO >>>
         #
         # Filename extension checking
         g.write_pdf(filename)
 
-    def _writeNaiveOnlineScheduleTree(self, g, ns, ys, num, depth):
-        """ HELP """
+    def _writeOnlineScheduleTree(self, g, ns, ys, num, depth, prune):
+        """
+        This is the recursive helper method to fully expand the tree
+        """
 
         # Terminal condition
         if all(s == n for s,n in zip(self.bs, ns)):
-            g.add_node(_pd.Node(str(num), label="N/A"))
-            return
-        # Non terminal
-        b,_ = self.blockChoice(ns, ys)
-        g.add_node(_pd.Node(str(num), label=str(b)))
-        # Max depth reached?
-        depth -= 1
-        if depth <= 0:
-            return
-        # Calculate No path
-        g.add_edge(_pd.Edge(str(num), str(num*2), label="No"))
-        _ns = list(ns)
-        _ns[b] += 1
-        _ns = tuple(_ns)
-        self._writeNaiveOnlineScheduleTree(g, _ns, ys, num*2, depth)
-        # Calculate Yes path
-        g.add_edge(_pd.Edge(str(num), str(num*2 + 1), label="Yes"))
-        _ys = list(ys)
-        _ys[b] += 1
-        _ys = tuple(_ys)
-        self._writeNaiveOnlineScheduleTree(g, _ns, _ys, num*2+1, depth)
-
-    def writeImpossiblePrunedOnlineScheduleTree(self, filename, depth=5):
-        """ HELP """
-
-        g = _pd.Dot('G', graph_type='digraph')
-        self._writeImpossiblePrunedOnlineScheduleTree(g, (0,)*self.B,
-            (0,)*self.B, 1, depth)
-        # <<< TODO >>>
-        #
-        # Filename extension checking
-        g.write_pdf(filename)
-
-    def _writeImpossiblePrunedOnlineScheduleTree(self, g, ns, ys, num,
-                                                 depth):
-        """ HELP """
-
-        # Terminal condition
-        if all(s == n for s,n in zip(self.bs, ns)):
-            g.add_node(_pd.Node(str(num), label="N/A"))
+            g.add_node(_pd.Node(str(num), label="End"))
             return
         # Non terminal
         b = self.blockChoice(ns, ys)[0]
         g.add_node(_pd.Node(str(num), label=str(b)))
         # Max depth reached?
         depth -= 1
-        if depth <= 0:
+        if depth == 0:
             return
         # Calculate No path
-        if not self.nodeChoice(b, False, ns, ys)[0]:
+        _ns = list(ns)
+        _ns[b] += 1
+        _ns = tuple(_ns)
+        if not prune or not self.nodeChoice(b, False, ns, ys)[0]:
             # It's only possible for a strategic node to choose No if
             # a No type node chooses No, because if a No node chooses
             # Yes, then a Yes node will certainly choose Yes.
             g.add_edge(_pd.Edge(str(num), str(num*2), label="No"))
-            _ns = list(ns)
-            _ns[b] += 1
-            _ns = tuple(_ns)
-            self._writeImpossiblePrunedOnlineScheduleTree(g, _ns, ys,
-                                                          num*2, depth)
+            self._writeOnlineScheduleTree(g, _ns, ys, num*2, depth,
+                                          prune)
+
         # Calculate Yes path
-        if self.nodeChoice(b, True, ns, ys)[0]:
+        _ys = list(ys)
+        _ys[b] += 1
+        _ys = tuple(_ys)
+        if not prune or self.nodeChoice(b, True, ns, ys)[0]:
             # See explanation above for why this is suficient to
             # guarentee that it's possible for a node to choose Yes.
-            g.add_edge(_pd.Edge(str(num), str(num*2 + 1), label="Yes"))
-            _ys = list(ys)
-            _ys[b] += 1
-            _ys = tuple(_ys)
-            self._writeImpossiblePrunedOnlineScheduleTree(g, _ns, _ys,
-                                                          num*2+1, depth)
+            g.add_edge(_pd.Edge(str(num), str(num*2 + 1),
+                                label="Yes"))
+            self._writeOnlineScheduleTree(g, _ns, _ys, num*2+1, depth,
+                                          prune)
+
+    def genOnlineScheduleTree(self, prune=True):
+        """
+        Returns a "tuple tree" of decisons
+
+        Parameters
+        ----------
+        prune = Optional. Whether not to prune the tree of decisions that
+                strategic nodes never make. Defaults to True.
+
+        Return Values
+        -------------
+        tupleTree = Nested tuples that represent the the possible
+                    decisions of the scheduler and nodes. All nodes are
+                    a three tuple of (block to choose, no branch, yes
+                    branch). If the node doesn't have a yes or a no
+                    branch, then the value will be None instead.
+        """
+
+        return self._genOnlineScheduleTree((0,)*self.B, (0,)*self.B,
+                                           prune)
+
+    def _genOnlineScheduleTree(self, ns, ys, prune):
+
+        # Terminal condition
+        if all(s == n for s,n in zip(self.bs, ns)):
+            return None
+        # Non terminal
+        b,_ = self.blockChoice(ns, ys)
+
+        # Calculate No path
+        _ns = list(ns)
+        _ns[b] += 1
+        _ns = tuple(_ns)
+        if not prune or not self.nodeChoice(b, False, ns, ys)[0]:
+            # It's only possible for a strategic node to choose No if
+            # a No type node chooses No, because if a No node chooses
+            # Yes, then a Yes node will certainly choose Yes.
+            no = self._genOnlineScheduleTree(_ns, ys, prune)
+        else:
+            no = None
+
+        # Calculate Yes path
+        _ys = list(ys)
+        _ys[b] += 1
+        _ys = tuple(_ys)
+        if not prune or self.nodeChoice(b, True, ns, ys)[0]:
+            # See explanation above for why this is suficient to
+            # guarentee that it's possible for a node to choose Yes.
+            yes = self._genOnlineScheduleTree(_ns, _ys, prune)
+        else:
+            yes = None
+
+        return (b, no, yes)
