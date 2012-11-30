@@ -299,7 +299,7 @@ class StrategicBlockCascadeSolver:
         for k,v in self.nc.iteritems():
             print k,v
 
-    def writeOnlineScheduleTree(self, filename, depth=5, prune=True):
+    def writeOnlineScheduleTree(self, filename, depth=5, prune=True, merge=False):
         """
         Writes a tree of the optimal decisions for the scheduler
 
@@ -317,16 +317,25 @@ class StrategicBlockCascadeSolver:
                    Defaults to 5.
         prune    = Optional. Whether or not to prune subtrees strategic
                    node will never choose. Defaults to True.
+        merge    = Optional. Whether or not to merge subtrees with
+                   identical schedules. Merging automatically
         """
 
-        g = _pd.Dot('G', graph_type='digraph')
-        self._writeOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B, 1,
-                                      depth, prune)
         # <<< TODO >>>
         #
         # Filename extension checking
-        g.write_pdf(filename)
 
+        if merge == True:
+            tupleGraph = self.genOnlineScheduleTree(True)
+            # currently not using hashVal
+            tupleGraph, hashVal = self.merge(tupleGraph)
+            self.genDotFromTuple(tupleGraph).write_pdf(filename)
+        else:
+            g = _pd.Dot('G', graph_type='digraph')
+            self._writeOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B, 1,
+                                      depth, prune)
+            g.write_pdf(filename)
+       
     def _writeOnlineScheduleTree(self, g, ns, ys, num, depth, prune):
         """
         This is the recursive helper method to fully expand the tree
@@ -366,6 +375,95 @@ class StrategicBlockCascadeSolver:
                                 label="Yes"))
             self._writeOnlineScheduleTree(g, _ns, _ys, num*2+1, depth,
                                           prune)
+
+    def merge(self, tupleGraph):
+        """
+        Merges a schedule tree by combining all subtrees where
+        the scheduler makes identical decisions
+
+        Parameters
+        ----------
+        tupleGraph = Nested tuples representing the possible 
+                     decisions of nodes and the scheduler
+
+        Return Values
+        -------------
+        newGraph = New graph (in nested tuple form), after merging
+        hashVal  = Not used
+        """
+
+        if tupleGraph == None:
+            return (None, None)
+
+        leftGraph, leftHash = self.merge(tupleGraph[1])
+        rightGraph, rightHash = self.merge(tupleGraph[2])
+
+        # TODO: generate hashes correctly. now we are just comparing
+        # merged graphs by hand.
+        if leftHash == rightHash:
+            newGraph = (tupleGraph[0], leftGraph)
+            hashVal = newGraph
+            return (newGraph, hashVal)
+        else:
+            newGraph = (tupleGraph[0], leftGraph, rightGraph)
+            if leftGraph == None:
+                hashVal = (tupleGraph[0], rightGraph)
+            elif rightGraph == None:
+                hashVal = (tupleGraph[0], leftGraph)
+            else:
+                hashVal = newGraph
+            return (newGraph, hashVal)
+
+
+    def genDotFromTuple(self, tupleGraph):
+        """
+        Converts a graph from tuple form to Dot form, for display
+
+        Parameters
+        ––––------
+        tupleGraph = Nested tuples representing the possible
+                     decisions of nodes and the scheduler
+
+        Return Values
+        -------------
+        g = a Dot class representing the input graph
+        """
+
+        g = _pd.Dot('G', graph_type='digraph')
+        
+        self._genDotFromTuple(g, 1, tupleGraph)
+
+        return g
+
+
+    def _genDotFromTuple(self, g, num, tupleGraph):
+        """
+        Recursive helper. Parses tuples and adds appropriate edges
+        """
+
+        if tupleGraph == None:
+            return
+
+        g.add_node(_pd.Node(str(num), label=str(tupleGraph[0])))
+
+        # The case where we have merged subtrees into one.
+        if len(tupleGraph) == 2:
+            g.add_edge(_pd.Edge(str(num), str(num*2), label="Either"))
+            if tupleGraph[1] == None:
+                g.add_node(_pd.Node(str(num*2), label="End"))
+            else:
+                self._genDotFromTuple(g, num*2, tupleGraph[1])
+        # The normal, unmerged case. It's possible for one side to be
+        # missing
+        else:
+            # No path
+            if tupleGraph[1] != None:
+                g.add_edge(_pd.Edge(str(num), str(num*2), label="No"))
+                self._genDotFromTuple(g, num*2, tupleGraph[1])
+            # Yes path
+            if tupleGraph[2] != None:
+                g.add_edge(_pd.Edge(str(num), str(num*2+1), label="Yes"))
+                self._genDotFromTuple(g, num*2+1, tupleGraph[2])
 
     def genOnlineScheduleTree(self, prune=True):
         """
