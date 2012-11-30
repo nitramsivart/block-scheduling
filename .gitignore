@@ -4,3 +4,9 @@
 # Temp files
 *~
 \#*\#
+
+*.pdf
+
+.block_dp.py.swp
+
+.DS_Store
