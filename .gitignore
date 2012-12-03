@@ -4,9 +4,12 @@
 # Temp files
 *~
 \#*\#
+*.swp
 
+# Latex
 *.pdf
+*.aux
+*.log
 
-.block_dp.py.swp
-
+# Misc
 .DS_Store
