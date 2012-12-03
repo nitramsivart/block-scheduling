@@ -1,5 +1,8 @@
 \documentclass{article}
 
+\usepackage{amsmath}
+\usepackage{amssymb}
+
 \title{Paper}
 \author{T. Martian \& E. Brinkbot}
 
@@ -7,8 +10,113 @@
 
 \maketitle
 
+\section{Model}
+
+Model Description goes here...
+
+\begin{align*}
+  & k && \text{Number of blocks} \\
+  & \{s_i\}_{i=1..k} && \text{Number of nodes in each block}
+\end{align*}
+
+\section{Algorithm}
+
+The algorithm uses two lookup tables (one for the scheduler, and one
+for the nodes) to determine the optimal play given the relevant
+statistics of the game at decision time. Each table has a dimension
+for every relevant play statistic for the deciding agent, and contains
+their optimal choice as well as the expected number of Yeses in each
+block after that choice is made (which is necessary for callers to
+decide on their optimal decision, as expected payoffs are only a
+function of the expected number of Yeses at the end).
+
+These two tables back two oracles (wrong terminology?) which will
+return a precomputed value if it's already in the table, or they'll
+compute it as defined below. This can lead to a recursive cascade of
+computation, which is bounded by the size of the tables times the time
+to compute each element in terms of a lookup in one of them.
+
+We'll call the scheduler oracle
+\begin{align*}
+  & \operatorname{sched}(\{c_i\}, \{y_i\})
+  \intertext{and the node oracle}
+  & \operatorname{node}(t, b, \{c_i\}, \{y_i\})
+  \intertext{where}
+  & type && \text{Node's type (Yes or No)} \\
+  & n && \text{Node block} \\
+  & \{c_i\} && \text{Number of already chosen nodes by block} \\
+  & \{y_i\} && \text{Number of Yes chosen nodes by block}
+\end{align*}
+We can show (we need to show) that that's all of the relevant
+statistics either agent needs to know to determine a unique optimal
+decision.
+
+The scheduler just needs to check each possible choice of next block,
+and for each block calculate the expected number of Yeses by weighting
+the expected number of Yeses for a Yes or No node by the probability
+of a Yes or No node. This involves at most $2k$ calls to the node
+oracle, and is sufficient for determining the optimal choice of the
+scheduler.
+
+The nodes just have to find their expected value if they choose Yes or
+choose No. This is just comparing two calls to the sched oracle.
+
+Combining these two yields a polynomial in $n$ time algorithm for
+solving arbitrary block models.
+
 \section{Complexity}
 
-working on this section...
+lookups are constant time, so the total time complexity is going to
+be bounded by the number of entries in the table times the number of
+table lookups it takes to compute one entry in the table. Later we may
+be able to show not all of the table needs / will be computed lowering
+complexity.
+
+The size of the node table is trivial to upper bound. There are $2k+2$
+dimensions: the node's type (2 values), the node's block ($k$ values),
+$k$ dimensions for the number of nodes in each block that have gone
+before ($\le s_i + 1 | i=1..k$), and $k$ dimensions for the number of
+nodes in each block that have gone before and selected yes ($\le s_i +
+1 | i=1..k$). This leads to the following statement,
+\begin{align*}
+  NodeTableSize &= o\left( 2k \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
+  \right) \\
+  &= o\left( k \prod_{i=1}^k s_i^2 \right)
+  \intertext{If we further assume that the size of $\ell \le k$ of
+    the blocks are order $n$ and the rest are constant size, then the
+    size of the table reduces to}
+  NodeTableSize &= o\left( kn^{2\ell} \right) \footnotemark
+  \intertext{Next we need to find the complexity of the computing one
+    entry in the node table in terms of other table lookups. Each
+    entry computation takes 2 calls to the sched oracle, and then does
+    computation of the expected number of Yeses which is order $k$,
+    making the total complexity for the node table given the sched
+    table}
+  NodeTableSize &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
+  NodeTableSize &= o\left( k^2 n^{2\ell} \right)
+  \intertext{The size of the scheduler table is also trivial to upper
+    bound. There are $2k$ dimensions similar to the node table. By
+    similar reasoning}
+  SchedTableSize &= o\left( \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
+  \right) \\
+  &= o\left( \prod_{i=1}^k s_i^2 \right)
+  \intertext{If we make the same assumption about block sizes this
+    reduces to}
+  SchedTableSize &= o \left( n^{2\ell} \right)
+  \intertext{The complexity for each entry in the scheduler table is
+    linear in $k$, because it makes $2k$ lookups to the node
+    table. Therefore the total complexity for constructing the
+    scheduler table is bounded by}
+  SchedTableSize &= o\left( k \prod_{i=1}^k s_i^2 \right) \\
+  SchedTableSize &= o \left( k n^{2\ell} \right)
+  \intertext{This leaves us with final time complexity of}
+  RunningTime &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
+  &= o\left( k^2 n^{2\ell} \right)
+\end{align*}
+\footnotetext{Note, this may be smaller $o\left( \ell n^{2\ell}
+  \right)$, not sure}
+
+Similarly the node table is the large of the two tables, and has space
+complexity equal to time complexity.
 
 \end{document}
