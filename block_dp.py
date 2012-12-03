@@ -301,7 +301,7 @@ class StrategicBlockCascadeSolver:
         for k,v in self.nc.iteritems():
             print k,v
 
-    def writeOnlineScheduleTree(self, filename, depth=5, prune=True, merge=False):
+    def writeOnlineScheduleTree(self, filename, depth=0, prune=True, merge=False):
         """
         Writes a tree of the optimal decisions for the scheduler
 
@@ -316,7 +316,7 @@ class StrategicBlockCascadeSolver:
                    .pdf extension, or most programs probably won't
                    recognize it
         depth    = Optional. The maximum depth the tree will descend to.
-                   Defaults to 5.
+                   Defaults to 0 (full depth).
         prune    = Optional. Whether or not to prune subtrees strategic
                    node will never choose. Defaults to True.
         merge    = Optional. Whether or not to merge subtrees with
