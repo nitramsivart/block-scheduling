@@ -74,7 +74,7 @@ class StrategicBlockCascadeSolver:
     # choose
     """
 
-    def __init__(self, p, pi, blockSizes, blockAdjacency):
+    def __init__(self, p, pi, blockSizes, blockAdjacency, myopic=False):
         """
         Create Solver Object
 
@@ -88,6 +88,8 @@ class StrategicBlockCascadeSolver:
         blockAdjacency = block adjacency matrix (BxB double tuple) This
                          can be asymetric and contain any non negative
                          weights
+
+        myopic         = whether agents update myopically or strategically
         """
         self.p  = p
         self.pi = pi
@@ -96,6 +98,7 @@ class StrategicBlockCascadeSolver:
         self.B  = len(blockSizes)
         self.nc = {} # DP table for optimal node choices
         self.bc = {} # DP table for optimal scheduler block choices
+        self.myopic = myopic
 
         assert p >= 0 and p <= 0.5, "p must be between 0 and 0.5"
         assert pi > 0, "pi must be greater than 0"
@@ -153,62 +156,98 @@ class StrategicBlockCascadeSolver:
         # <<< TODO >>>
         #
         # This is not the right check! It should check that
-        # specifically ns_b is one less than self.bs_b
+        # specifically ns_b is one less than self.bs_b but these
+        # should be equivelent under standard operation.
         if sum(ns) == sum(self.bs) - 1:
             # Recursive edge case. There are no nodes to pick after
             # this, so it just performs a myopic decision.
 
-            # <<< TODO >>>
-            # Figure out if this is correct. Right now it doesn't
-            # factor its own decision into its objective. The purpose
-            # of this is to remove self loops when there is a nonzero
-            # diagonal term. This might not accomplish this, and may
-            # make this calculation innacurate.
+            # No
+            _ns = list(ns)
+            _ns[b] += 1
+            _ns = tuple(_ns)
             un = sum(a*(n - y) for a,y,n in zip(self.ba[b], ys,
-                ns)) + (self.pi if not t else 0)
-            uy = sum(a*y for a,y in zip(self.ba[b], ys)) + (self.pi
+                _ns)) + (self.pi if not t else 0)
+
+            # Yes
+            _ys = list(ys)
+            _ys[b] += 1
+            _ys = tuple(_ys)
+            uy = sum(a*y for a,y in zip(self.ba[b], _ys)) + (self.pi
                 if t else 0)
 
             # Choose Y when...
             choice = uy > un
             # Expected / actual number of Y's by block
-            Ey_b = [float(y) for y in ys]
             if choice:
-                Ey_b[b] += 1
+                Ey_b = tuple(float(y) for y in _ys)
+            else:
+                Ey_b = tuple(float(y) for y in ys)
+
             # Store result of computation
-            result = (choice, tuple(Ey_b))
+            result = (choice, Ey_b)
             self.nc[key] = result
             return result
         else:
-            # Not last to pick. Must look over choice of yes and
-            # choice of no to decide which is better in expected value
-            # knowing scheduler choices
+            if self.myopic:
+                # No
+                _ns = list(ns)
+                _ns[b] += 1
+                _ns = tuple(_ns)
+                un = sum(a*(n - y) for a,y,n in zip(self.ba[b], ys,
+                    _ns)) + (self.pi if not t else 0)
 
-            # Utility for choosing No
-            _ns = list(ns)
-            _ns[b] += 1
-            _ns = tuple(_ns)
 
-            _, Ey_bN = self.blockChoice(_ns, ys) #E[Y|N] by block
-            un = sum(a * (s - y) for a,y,s in zip(self.ba[b], Ey_bN,
+                # Yes
+                _ys = list(ys)
+                _ys[b] += 1
+                _ys = tuple(_ys)
+                uy = sum(a*y for a,y in zip(self.ba[b], _ys)) + (self.pi
+                    if t else 0)
+
+                # Choose Y when...
+                choice = uy > un
+                # Expected / actual number of Y's by block
+                if choice:
+                    Ey_b = self.blockChoice(_ns, _ys)[1]
+                else:
+                    Ey_b = self.blockChoice(_ns, ys)[1]
+
+                # Store result of computation
+                result = (choice, Ey_b)
+                self.nc[key] = result
+                return result
+
+            else:
+                # Not last to pick. Must look over choice of yes and
+                # choice of no to decide which is better in expected value
+                # knowing scheduler choices
+
+                # Utility for choosing No
+                _ns = list(ns)
+                _ns[b] += 1
+                _ns = tuple(_ns)
+
+                _, Ey_bN = self.blockChoice(_ns, ys) #E[Y|N] by block
+                un = sum(a * (s - y) for a,y,s in zip(self.ba[b], Ey_bN,
                     self.bs)) + (self.pi if not t else 0)
 
-            # Utility for choosing Yes
-            # If this node chooses Yes, one more yes in its block
-            _ys = list(ys)
-            _ys[b] += 1
-            _ys = tuple(_ys)
+                # Utility for choosing Yes
+                # If this node chooses Yes, one more yes in its block
+                _ys = list(ys)
+                _ys[b] += 1
+                _ys = tuple(_ys)
 
-            _, Ey_bY = self.blockChoice(_ns, _ys) #E[Y|Y] by block
-            uy = sum(a * y for a,y in zip(self.ba[b], Ey_bY)
-                     ) + (self.pi if t else 0)
+                _, Ey_bY = self.blockChoice(_ns, _ys) #E[Y|Y] by block
+                uy = sum(a * y for a,y in zip(self.ba[b], Ey_bY)
+                    ) + (self.pi if t else 0)
 
-            # Choose Y when
-            choice = uy > un
-            # Store results of computation
-            result = (choice, Ey_bY if choice else Ey_bN)
-            self.nc[key] = result
-            return result
+                # Choose Y when
+                choice = uy > un
+                # Store results of computation
+                result = (choice, Ey_bY if choice else Ey_bN)
+                self.nc[key] = result
+                return result
 
     def blockChoice(self, ns, ys):
         """
@@ -337,7 +376,7 @@ class StrategicBlockCascadeSolver:
             self._writeOnlineScheduleTree(g, (0,)*self.B, (0,)*self.B, 1,
                                       depth, prune)
             g.write_pdf(filename)
-       
+
     def _writeOnlineScheduleTree(self, g, ns, ys, num, depth, prune):
         """
         This is the recursive helper method to fully expand the tree
@@ -385,7 +424,7 @@ class StrategicBlockCascadeSolver:
 
         Parameters
         ----------
-        tupleGraph = Nested tuples representing the possible 
+        tupleGraph = Nested tuples representing the possible
                      decisions of nodes and the scheduler
 
         Return Values
@@ -432,7 +471,7 @@ class StrategicBlockCascadeSolver:
         """
 
         g = _pd.Dot('G', graph_type='digraph')
-        
+
         self._genDotFromTuple(g, 1, tupleGraph)
 
         return g
@@ -520,3 +559,6 @@ class StrategicBlockCascadeSolver:
             yes = None
 
         return (b, no, yes)
+
+    def expectedYs(self):
+        return sum(self.blockChoice((0,)*self.B, (0,)*self.B)[1])
