@@ -35,6 +35,6 @@ def x_vs_y(x_start, x_inc, y_start, y_inc, dim, func, x_label, y_label):
             Z[j, i] = func(x_list[i], y_list[j])
     do_plotting(x_list, y_list, Z, x_start, x_inc, y_start, y_inc, dim, x_label, y_label)
 
-x_vs_y(.1, .01, .2, .025, 30, p_vs_pi, 'p', 'pi')
-x_vs_y(.1, .01, 1, 1, 30, p_vs_n, 'p', 'n')
-x_vs_y(.2, .025, 1, 1, 30, pi_vs_n, 'pi', 'n')
+x_vs_y(.1, .01, .2, .025, 40, p_vs_pi, 'p', 'pi')
+x_vs_y(.1, .01, 1, 1, 40, p_vs_n, 'p', 'n')
+x_vs_y(.2, .025, 1, 1, 40, pi_vs_n, 'pi', 'n')
