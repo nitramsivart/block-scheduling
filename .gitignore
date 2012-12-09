@@ -7,9 +7,10 @@
 *.swp
 
 # Latex
-*.pdf
 *.aux
 *.log
+*.bbl
+*.blg
 
 # Misc
 .DS_Store

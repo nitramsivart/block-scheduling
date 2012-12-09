@@ -101,7 +101,7 @@ class StrategicBlockCascadeSolver:
         self.myopic = myopic
 
         assert p >= 0 and p <= 0.5, "p must be between 0 and 0.5"
-        assert pi > 0, "pi must be greater than 0"
+        assert pi >= 0, "pi must be greater than or equal to 0"
         assert len(self.ba) == self.B, "BlockAdjacency must be BxB"
         assert all(len(row) == self.B for row in self.ba), "BlockAdjacency must be BxB"
         assert type(self.bs) is tuple, "BlockSizes must be a tuple"
