@@ -5,6 +5,10 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\captionsetup[subfigure]{labelformat=empty}
 
 \title{Cascades, Product Conversion, Whatever}
 \author{T. Martian \& E. Brinkbot}
@@ -295,12 +299,90 @@ nodes in each block that have gone before and selected yes ($\le s_i +
 Similarly the node table is the large of the two tables, and has space
 complexity equal to time complexity.
 
-\section{Results?}
+\section{Results \& Discussion}
+We implemented our dynamic program algorithm and ran it on several categories of graphs in order to guide intuition for theoretical work regarding this problem. Our primary concern was the difference in expected number of Yes decisions for the optimal adaptive schedule given strategic or myopic users. We aim to characterize situations under which strategic users give more Yes decisions than myopic users, or vice versa. Our secondary concern was testing the predicted complexity of our algorithms.
 
-Dunno if this is the best title for this section. Basically this is
-where we look at the graphs and maybe show some timing things?
+We test a star graph, a clique, and a special graph we call a cloud graph. A cloud graph consists of two singular vertices of degree one, one singular vertex of degree two, and two clouds of many vertices, each of degree two. Each of the singular degree one vertices is connected to every node in a distinct cloud. The singular degree two vertex is connected to every node in both clouds. This graph, under certain parameters, provably obtains more $Y$ adoptions for strategic users.
 
-\section{Discussion and Future Work}
+We examine the ratio of expected number of $Y$s between strategic and myopic while varying the parameters $p, \pi, n$. Colorplots of the ratio for the set value $n=10$ but varying $p, pi$ can be found in Figure~\ref{fig:ratio}. The primary lesson we learned from Figure~\ref{fig:ratio} is that the behavior on these graphs is extremely complex. There appears is no clear general characterization of how the ratio will behave.
+
+Though these plots provide little obvious insight into the general case of graphs, we can extract valuable information about specific behaviors and provide some upper and lower bounds on the extremes of the ratio.
+
+The ratio is increasing in $p$ for the star graph but decreasing in $p$ for the clique. Even more strangely, the ratio is (mostly) increasing in $\pi$ for the star graph but depends on the $p$ value for the clique. We see markedly different behavior when $\pi = 1$. This is the point at which agents are indifferent between choosing their own type and going with the expected majority. This indifference is unique to $\pi=1$, and our tie breaking methods lead to significant differences in outcome.
+
+We learn several things regarding the question of whether strategic agents can ever give more Y adoptions than myopic agents. Data for the star graph supports the theoretical result, that myopic is always better on the (and thus the ratio is bounded by 1). The clique plot suggests an interesting result. For small $p, \pi$, strategic is better than myopic. This is an unexpected, but reasonable result. For $\pi=1+\epsilon$, only 1 Y decision is required to start a Y cascade with strategic users, but 2 Y decisions are required with myopic users. So the ratio can be as large as $\frac{1}{p}$. We also confirm some cascade proofs we've had for the clique and cloud graphs, namely that we can achieve either a $Y$ or an $N$ cascade on the cloud graph, depending on the parameters, and that for many parameters the clique achieves an $N$ cascade.
+
+We leave out plots which vary $n$, in the interest of space. These plots give similarly varied results.
+
+Careful analysis of plots in Figure~\ref{fig:ratio} reveals that our graphs have sharp bands of color, in which small changes in $p$ or $\pi$ result in drastic changes in ratio. We graph numerical values in Figure~\ref{fig:ratio2} in order to investigate this phenomenon on the star graph. Drastic ratio changes correspond to changes in fundamental behavior of strategic nodes on the star. For example, as $p$ or $pi$ get larger, the situations under which a strategic $Y$ type edge node might choose $N$ change. For low enough $\pi$ (on the star graph), $Y$ type nodes will choose $N$ after only one edge node has chosen $N$. As $\pi$ rises, this stubbornness threshold also rises in discrete jumps as seen on the graph.
+
+Lastly, we investigate the computational complexity of our algorithm in Figure~\ref{fig:time} by measuring computation time over varied graph sizes. We time the star graph, which has one block that scales with $n$, and the cloud graph, which has two blocks that scale with $n$. As predicted, running time is quadratic for the star graph and quartic for the cloud graph.
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.3\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{star_n10.pdf}
+                \caption{Star}
+        \end{subfigure}
+        ~ 
+        \begin{subfigure}[b]{0.3\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{clique_n10.pdf}
+                \caption{Clique}
+        \end{subfigure}
+        ~ 
+        \begin{subfigure}[b]{0.3\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{grant_n10.pdf}
+                \caption{Cloud}
+        \end{subfigure}
+        \caption{Ratio of strategic:myopic Y adoptions for varying $p, \pi$.}
+        \label{fig:ratio}
+\end{figure}
+
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.45\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{{p_ratio_pi0.9n20}.pdf}
+                \caption{Varying p}
+        \end{subfigure}
+        ~ 
+        \begin{subfigure}[b]{0.45\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{{pi_ratio_p0.45n20}.pdf}
+                \caption{Varying pi}
+        \end{subfigure}
+        \caption{Ratio of strategic:myopic Y adoptions for varying $p, \pi$ on star graph.}
+        \label{fig:ratio2}
+\end{figure}
+
+
+
+\begin{figure}
+        \centering
+        \begin{subfigure}[b]{0.45\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{star_time.pdf}
+                \caption{Star}
+        \end{subfigure}
+        ~ 
+        \begin{subfigure}[b]{0.45\textwidth}
+                \centering
+                \includegraphics[width=\textwidth]{cloud_time.pdf}
+                \caption{Cloud}
+        \end{subfigure}
+        \caption{Code runtime for varying graph size. Blue line is best quadratic fit, green line is best quartic fit.}
+        \label{fig:time}
+\end{figure}
+
+
+
+
+
+\section{Future Work}
 
 Talk about the significance, patterns, stuff like that that? Talk
 about future work in quantifying for general graphs, although it may
