@@ -196,57 +196,82 @@ Then maybe a subsection specifically about block models
 \end{align*}
 
 \section{Algorithm}
+\label{sec:algorithm}
 
 The algorithm uses two lookup tables (one for the scheduler, and one
 for the nodes) to determine the optimal play given the relevant
-statistics of the game at decision time. Each table has a dimension
-for every relevant play statistic for the deciding agent, and contains
-their optimal choice as well as the expected number of Yeses in each
-block after that choice is made (which is necessary for callers to
-decide on their optimal decision, as expected payoffs are only a
-function of the expected number of Yeses at the end).
+statistics of the game at every decision time. Each table has a
+dimension for every relevant play statistic for the deciding agent,
+and contains their optimal choice as well as the expected number of
+Yeses in each block after that choice is made (which is necessary for
+callers to decide on their optimal decision, as expected payoffs are
+only a function of the expected number of Yeses at the end of the
+game).
 
-These two tables back two oracles (wrong terminology?) which will
-return a precomputed value if it's already in the table, or they'll
-compute it as defined below. This can lead to a recursive cascade of
-computation, which is bounded by the size of the tables times the time
-to compute each element in terms of a lookup in one of them.
+The two tables recursively reference each other to calculate their
+entries, where each entry is the choice, and the expected number of
+Yesses at the end of the game in each block conditioned on that
+choice. If an entry is already calculated, then the lookup is constant
+time, otherwise the lookup may cause a cascade of calculations, which
+is bounded by the polynomial time to compute both tables.\footnote{It
+  is possible that instead of looking these up on the fly, he table
+  could be precomputed to speed up the complexity slightly, but we
+  believe that this speedup would be very slight, and would make the
+  algorithm much more complicated}
 
-We'll call the scheduler oracle
+We will represent the tables as recursive functions, with the implicit
+understanding that we're caching results to get a polynomial time
+algorithm.
+
+To determine the optimal block choice for the scheduler, the decision
+function only needs to know, ho many nodes from each block have
+already gone, and what proportion (or number) of the nodes have chosen
+Yes. Because nodes within a block are exchangeable, this information
+completely characterizes the state of the game at the time of
+scheduler choice.
+
+Similarly, to determine the optimal choice (Yes or No) of a node, the
+node only needs (has available) its own type, what block it is in, the
+number of nodes in each block that have already chosen, and the number
+of those nodes that have chosen Yes.
+
+We formally define the optimal scheduler choice function as
 \begin{align*}
   & \operatorname{sched}(\{c_i\}, \{y_i\})
-  \intertext{and the node oracle}
+  \intertext{and the optimal node choice function as}
   & \operatorname{node}(t, b, \{c_i\}, \{y_i\})
   \intertext{where}
-  & type && \text{Node's type (Yes or No)} \\
+  & t && \text{Node's type (Yes or No)} \\
   & n && \text{Node block} \\
   & \{c_i\} && \text{Number of already chosen nodes by block} \\
   & \{y_i\} && \text{Number of Yes chosen nodes by block}
 \end{align*}
-We can show (we need to show) that that's all of the relevant
-statistics either agent needs to know to determine a unique optimal
-decision.
 
-The scheduler just needs to check each possible choice of next block,
-and for each block calculate the expected number of Yeses by weighting
-the expected number of Yeses for a Yes or No node by the probability
-of a Yes or No node. This involves at most $2k$ calls to the node
-oracle, and is sufficient for determining the optimal choice of the
-scheduler.
+The scheduler needs to check the possible outcome given it picks a Yes
+or a No type node from each of the $k$ blocks that have a most one
+node possible to pick. It then marginalizes out the type of the node
+to calculate the expected number of Yesses for each choice of
+block. The optimal choice is simply the one that maximizes the
+expected number of Yesses.
 
-The nodes just have to find their expected value if they choose Yes or
-choose No. This is just comparing two calls to the sched oracle.
+A node needs to check its own expected final utility given it chooses
+Yes or No, and choose the choice that maximizes it. The node can query
+the scheduler function to determine the expected number of Yesses in
+each block conditioned on the node choosing Yes or No. The node then
+trivially calculates its expected utility for each choice, and picks
+the maximum.
 
-Combining these two yields a polynomial in $n$ time algorithm for
-solving arbitrary block models.
+Completely calculating the results of these functions is trivially
+simple, and in doing so completely finds the optimal online schedule
+and optimal node choice along that schedule.
 
 \section{Complexity}
 
-lookups are constant time, so the total time complexity is going to
+See Section \ref{sec:algorithm} for an explanation of the algorithm.
+
+Lookups are constant time, so the total time complexity is going to
 be bounded by the number of entries in the table times the number of
-table lookups it takes to compute one entry in the table. Later we may
-be able to show not all of the table needs / will be computed lowering
-complexity.
+table lookups it takes to compute one entry in the table.
 
 The size of the node table is trivial to upper bound. There are $2k+2$
 dimensions: the node's type (2 values), the node's block ($k$ values),
@@ -258,18 +283,17 @@ nodes in each block that have gone before and selected yes ($\le s_i +
   NodeTableSize &= o\left( 2k \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
   \right) \\
   &= o\left( k \prod_{i=1}^k s_i^2 \right)
-  \intertext{If we further assume that the size of $\ell \le k$ of
-    the blocks are order $n$ and the rest are constant size, then the
+  \intertext{If we further assume that $\ell \le k$ of
+    the blocks are size order $n$ and the rest are constant size, then the
     size of the table reduces to}
-  NodeTableSize &= o\left( kn^{2\ell} \right) \footnotemark
-  \intertext{Next we need to find the complexity of the computing one
-    entry in the node table in terms of other table lookups. Each
-    entry computation takes 2 calls to the sched oracle, and then does
+  NodeTableSize &= o\left( kn^{2\ell} \right)
+  \intertext{Each node table entry
+    computation takes 2 calls to the sched function, and then does
     computation of the expected number of Yeses which is order $k$,
     making the total complexity for the node table given the sched
     table}
-  NodeTableSize &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
-  NodeTableSize &= o\left( k^2 n^{2\ell} \right)
+  NodeTableComplexity &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
+  NodeTableComplexity &= o\left( k^2 n^{2\ell} \right)
   \intertext{The size of the scheduler table is also trivial to upper
     bound. There are $2k$ dimensions similar to the node table. By
     similar reasoning}
@@ -283,16 +307,14 @@ nodes in each block that have gone before and selected yes ($\le s_i +
     linear in $k$, because it makes $2k$ lookups to the node
     table. Therefore the total complexity for constructing the
     scheduler table is bounded by}
-  SchedTableSize &= o\left( k \prod_{i=1}^k s_i^2 \right) \\
-  SchedTableSize &= o \left( k n^{2\ell} \right)
+  SchedTableComplexity &= o\left( k \prod_{i=1}^k s_i^2 \right) \\
+  SchedTableComplexity &= o \left( k n^{2\ell} \right)
   \intertext{This leaves us with final time complexity of}
   RunningTime &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
   &= o\left( k^2 n^{2\ell} \right)
 \end{align*}
-\footnotetext{Note, this may be smaller $o\left( \ell n^{2\ell}
-  \right)$, not sure}
 
-Similarly the node table is the large of the two tables, and has space
+Similarly the node table is the larger of the two tables, and has space
 complexity equal to time complexity.
 
 \section{Results?}
