@@ -46,23 +46,5 @@ p = np.linspace(pr[0],   pr[1],  20)
 pi = np.linspace(pir[0], pir[1], 20)
 P, PI = np.meshgrid(p, pi)
 
-ratio = np.log(getStratV(P,PI,12,0.5) / getMyopV(P,PI,12,0.5))
-makePlot(ratio, pr + pir, 'cloud_n12_r0.5', 'p', 'pi')
-
-nr  = (1,15)
-pir = (0.01, 2)
-n  = np.linspace(nr[0],   nr[1],  15)
-pi = np.linspace(pir[0], pir[1], 40)
-N, PI = np.meshgrid(n, pi)
-
-#ratio = getStratV(0.25,PI,N) / getMyopV(0.25,PI,N)
-#makePlot(ratio, nr + pir, 'grant_p0.25', 'n', 'pi')
-
-pr = (0.01, 0.5)
-nr  = (1,15)
-n  = np.linspace(nr[0],   nr[1],  15)
-p = np.linspace(pr[0], pr[1], 20)
-N, P = np.meshgrid(n, p)
-
-#ratio = getStratV(P,1.5,N) / getMyopV(P,1.5,N)
-#makePlot(ratio, nr + pr, 'grant_pi1.5', 'n', 'p')
+ratio = np.log(getStratV(P,PI,10,0.5) / getMyopV(P,PI,10,0.5))
+makePlot(ratio, pr + pir, 'cloud_n10_r0.5', 'p', 'pi')
