@@ -35,7 +35,7 @@ cascading processes on networks.
 Many models with simple spreading rules have been proposed
 \cite{Arthur89, Morris00, Watts02} to explain, for example, how
 breaking news spreads over the internet or how a new technology (such
-as the iPod) spreads in popularity. These spreading rules utually take
+as the iPod) spreads in popularity. These spreading rules usually take
 one of two forms. The rules either govern a stochastic spreading
 process, or they assume that each node in the network is a strategic
 agent which makes a decision (e.g. to buy an iPod or to buy a Zune)
@@ -65,11 +65,12 @@ could have types for each grade, and students with each type are more
 likely to connect to their own grade, and unlikely to connect to
 grades very far away.
 
-\section{Previous Work???}
+The analysis of strategic behavior on networks is not a new concept. Kearns et. al.
+introduced a convenient method for expressing games of this sort with their seminal
+work on graphical games \cite{Kearns01}. But, to the extent of our knowledge,
+nobody has attempted to characterize full graphical game models for cascade spreading.
+This is what we to below.
 
-Do we want to split up the introduction??
-Also, is it possible to show that finding the optimal equilibrium is
-NP-complete / PPAD-complete?
 
 \section{Problem Statement}
 \label{prob_statement}
@@ -322,21 +323,21 @@ Similarly the node table is the larger of the two tables, and has space
 complexity equal to time complexity.
 
 \section{Results \& Discussion}
-We implemented our dynamic program algorithm and ran it on several categories of graphs in order to guide intuition for theoretical work regarding this problem. Our primary concern was the difference in expected number of Yes decisions for the optimal adaptive schedule given strategic or myopic users. We aim to characterize situations under which strategic users give more Yes decisions than myopic users, or vice versa. Our secondary concern was testing the predicted complexity of our algorithms.
+We implemented our dynamic program algorithm and ran it on several categories of graphs in order to guide intuition for theoretical work regarding this problem. Our primary concern was the difference in expected number of Yes decisions for the optimal adaptive schedule given strategic or myopic users. We aim to characterize situations under which strategic users give more Yes decisions than myopic users, or vice versa. Our secondary concern was testing the predicted computational complexity of our algorithms.
 
 We test a star graph, a clique, and a special graph we call a cloud graph. A cloud graph consists of two singular vertices of degree one, one singular vertex of degree two, and two clouds of many vertices, each of degree two. Each of the singular degree one vertices is connected to every node in a distinct cloud. The singular degree two vertex is connected to every node in both clouds. This graph, under certain parameters, provably obtains more $Y$ adoptions for strategic users.
 
-We examine the ratio of expected number of $Y$s between strategic and myopic while varying the parameters $p, \pi, n$. Colorplots of the ratio for the set value $n=10$ but varying $p, pi$ can be found in Figure~\ref{fig:ratio}. The primary lesson we learned from Figure~\ref{fig:ratio} is that the behavior on these graphs is extremely complex. There appears is no clear general characterization of how the ratio will behave.
+We examine the ratio of expected number of $Y$s between strategic and myopic while varying the parameters $p, \pi, n$. Colorplots of the ratio for the set value $n=10$ but varying $p, \pi$ can be found in Figure~\ref{fig:ratio}. The primary lesson we learned from Figure~\ref{fig:ratio} is that the behavior on these graphs is extremely complex. There appears to be no clear general characterization of how the ratio will behave.
 
 Though these plots provide little obvious insight into the general case of graphs, we can extract valuable information about specific behaviors and provide some upper and lower bounds on the extremes of the ratio.
 
-The ratio is increasing in $p$ for the star graph but decreasing in $p$ for the clique. Even more strangely, the ratio is (mostly) increasing in $\pi$ for the star graph but depends on the $p$ value for the clique. We see markedly different behavior when $\pi = 1$. This is the point at which agents are indifferent between choosing their own type and going with the expected majority. This indifference is unique to $\pi=1$, and our tie breaking methods lead to significant differences in outcome.
+The ratio is increasing in $p$ for the star graph, decreasing in $p$ for the clique, and both (depending on $\pi$) for the cloud graph. Even more strangely, the ratio is (mostly) increasing in $\pi$ for the star graph but depends on the $p$ value for the clique and cloud graphs. We see markedly different behavior when $\pi = 1$. This is the point at which agents are indifferent between choosing their own type and going with the expected majority. This indifference is unique to $\pi=1$, as our tie breaking methods lead to significant differences in outcome.
 
-We learn several things regarding the question of whether strategic agents can ever give more Y adoptions than myopic agents. Data for the star graph supports the theoretical result, that myopic is always better on the (and thus the ratio is bounded by 1). The clique plot suggests an interesting result. For small $p, \pi$, strategic is better than myopic. This is an unexpected, but reasonable result. For $\pi=1+\epsilon$, only 1 Y decision is required to start a Y cascade with strategic users, but 2 Y decisions are required with myopic users. So the ratio can be as large as $\frac{1}{p}$. We also confirm some cascade proofs we've had for the clique and cloud graphs, namely that we can achieve either a $Y$ or an $N$ cascade on the cloud graph, depending on the parameters, and that for many parameters the clique achieves an $N$ cascade.
+We learn several things regarding the question of whether strategic agents can ever give more $Y$ adoptions than myopic agents. Data for the star graph supports our theoretical result that myopic is always better on the star graph (and thus the ratio is bounded by 1). The clique plot suggests an interesting result. For small $p, \pi$, strategic is better than myopic. This is an unexpected, but explainable result. For $\pi=1+\epsilon$, only 1 $Y$ decision is required to start a $ƒ$ cascade with strategic users, but 2 $Y$ decisions are required with myopic users. So the ratio can be as large as $\frac{1}{p}$. We also confirm some cascade proofs we've had for the clique and cloud graphs, namely that we can achieve either a $Y$ or an $N$ cascade on the cloud graph, depending on the parameters, and that for many parameters the clique achieves an $N$ cascade.
 
-We leave out plots which vary $n$, in the interest of space. These plots give similarly varied results.
+We leave out plots which vary $n$, in the interest of space, but these plots give similarly varied results.
 
-Careful analysis of plots in Figure~\ref{fig:ratio} reveals that our graphs have sharp bands of color, in which small changes in $p$ or $\pi$ result in drastic changes in ratio. We graph numerical values in Figure~\ref{fig:ratio2} in order to investigate this phenomenon on the star graph. Drastic ratio changes correspond to changes in fundamental behavior of strategic nodes on the star. For example, as $p$ or $pi$ get larger, the situations under which a strategic $Y$ type edge node might choose $N$ change. For low enough $\pi$ (on the star graph), $Y$ type nodes will choose $N$ after only one edge node has chosen $N$. As $\pi$ rises, this stubbornness threshold also rises in discrete jumps as seen on the graph.
+Careful analysis of plots in Figure~\ref{fig:ratio} reveals that our graphs have sharp bands of color in which small changes in $p$ or $\pi$ result in drastic changes in ratio. We graph numerical values in Figure~\ref{fig:ratio2} in order to investigate this phenomenon on the star graph. Drastic ratio changes correspond to changes in fundamental behavior of strategic nodes on the star. For example, as $p$ or $pi$ get larger, the situations under which a strategic $Y$ type edge node might choose $N$ change. For low enough $\pi$ (on the star graph), $Y$ type nodes will choose $N$ after only one edge node has chosen $N$. As $\pi$ rises, this stubbornness threshold also rises in discrete jumps as seen on the graph.
 
 Lastly, we investigate the computational complexity of our algorithm in Figure~\ref{fig:time} by measuring computation time over varied graph sizes. We time the star graph, which has one block that scales with $n$, and the cloud graph, which has two blocks that scale with $n$. As predicted, running time is quadratic for the star graph and quartic for the cloud graph.
 
