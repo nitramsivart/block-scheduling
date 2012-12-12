@@ -52,12 +52,12 @@ agents make decisions conscious of their future influence on outcomes,
 in order to maximize their expected final utility.
 
 More specifically, we propose to research the impact of having
-strategic users: how much different are results if we assume users are
-strategic instead of myopic. To answer this question, we will use a
+strategic users: how different are results if we assume users are
+strategic instead of myopic? To answer this question, we will use a
 model introduced in \cite{Chierichetti12} and described in
-Section~\ref{prob_statement}. Our contribution is to fully
+Section~\ref{prob_statement}. Our contribution is to begin to
 characterize the behavior of this model on a specific class of graphs,
-the 2-blockmodels, in hopes of learning more about the general
+the blockmodels, in hopes of learning more about the general
 case. Blockmodels have been studied extensively in the past
 \cite{Wang87, Snijders97} as a natural framing of networks in which we
 can think of a node having a type which influences its
@@ -69,8 +69,8 @@ grades very far away.
 The analysis of strategic behavior on networks is not a new
 concept. Kearns et. al.  introduced a convenient method for expressing
 games of this sort with their seminal work on graphical games
-\cite{Kearns01}. But, to the extent of our knowledge, nobody has
-attempted to characterize full graphical game models for cascade
+\cite{Kearns01}. But, to the best of our knowledge, nobody has
+attempted to solve graphical game models for cascade
 spreading.  This is what we do below.
 
 
@@ -90,25 +90,25 @@ the game picks one of the nodes in the graph. The chosen node picks a
 picked a ``choice.''
 
 We keep the same scheduler behavior as in the previous paper. The
-schedulers utility is based off of the number of nodes that choose Yes
+scheduler's utility is based off of the number of nodes that choose Yes
 at the end of the game. We assume the scheduler can change its plan
 after it sees what a node chooses. We also assume it has full
-knowledge of the nodes strategies, as well as knowledge of the full
+knowledge of the nodes' strategies, as well as knowledge of the full
 graph, and any game parameters. The only aspect the scheduler does not
-know is the individual nodes types.
+know is the individual node types.
 
-The nodes utility is the sum of all of their neighbors that match
+The nodes' utility is the sum of all of their neighbors that match
 their choice plus some constant ($\pi$) if their choice matches their
 type. Strategic nodes make decisions to maximize their expected
 profit. We assume strategic nodes know the schedulers decision making
 (or utility function), the graph structure, and the probability that a
 node is assigned Yes type ($p$), but not any other nodes type. To keep
-the model interesting, we restrict $p < 0.5$. Similarly myopic nodes
+the model interesting, we restrict $p < 0.5$. Conversely, myopic nodes
 only try to maximize their current utility, ignoring any nodes that
-has not made a decision.
+have not made a decision.
 
 We consider games where either all nodes in the graph are strategic or
-myopic, and want to see what graphs / game parameters contribute to
+all are myopic, and want to see what graphs / game parameters contribute to
 significant differences between the expected number of Yesses when
 nodes are strategic versus myopic.
 
@@ -123,7 +123,7 @@ We formally specify the model as follows
   \mathbb I[c_j = c_i] && \text{node utility} \\
   & sched(\mathbf c) && \text{schedule function}
 \end{align*}
-where $\mathbb I$ is the indicator function, and $N$ is the neighbor
+where $\mathbb I$ is the indicator function, and $N$ is the neighborhood
 function. The schedule function returns the next node to pick given
 the choices that have been made so far.
 
@@ -141,8 +141,8 @@ for a given family of graphs with different game parameters.
 
 Is seems likely that computing the strategic choices and payouts is a
 hard problem, but we will show an algorithm that can compute an
-optimal online schedule and calculate $\mathbb E[\#Y|stragetic]$ in
-polynomial time for arbitrary block models.
+optimal online schedule and calculate $\mathbb E[\#Y|stragetic]$ for arbitrary
+block models in time polynomial in the number of blocks.
 
 A graph is a $k$-block model if the vertices can be divided into $k$
 disjoint subsets such that every node in the same subset has
@@ -188,7 +188,7 @@ Yesses at the end of the game in each block conditioned on that
 choice. If an entry is already calculated, then the lookup is constant
 time, otherwise the lookup may cause a cascade of calculations, which
 is bounded by the polynomial time to compute both tables.\footnote{It
-  is possible that instead of looking these up on the fly, he table
+  is possible that instead of looking these up on the fly, the table
   could be precomputed to speed up the complexity slightly, but we
   believe that this speedup would be very slight, and would make the
   algorithm much more complicated}
@@ -198,8 +198,8 @@ understanding that we're caching results to get a polynomial time
 algorithm.
 
 To determine the optimal block choice for the scheduler, the decision
-function only needs to know, ho many nodes from each block have
-already gone, and what proportion (or number) of the nodes have chosen
+function only needs to know how many nodes from each block have
+already gone and what proportion (or number) of the nodes have chosen
 Yes. Because nodes within a block are exchangeable, this information
 completely characterizes the state of the game at the time of
 scheduler choice.
@@ -232,7 +232,7 @@ A node needs to check its own expected final utility given it chooses
 Yes or No, and choose the choice that maximizes it. The node can query
 the scheduler function to determine the expected number of Yesses in
 each block conditioned on the node choosing Yes or No. The node then
-trivially calculates its expected utility for each choice, and picks
+trivially calculates its expected utility for each choice and picks
 the maximum.
 
 Completely calculating the results of these functions is trivially
@@ -243,8 +243,8 @@ and optimal node choice along that schedule.
 
 See Section \ref{sec:algorithm} for an explanation of the algorithm.
 
-Lookups are constant time, so the total time complexity is going to
-be bounded by the number of entries in the table times the number of
+Lookups are constant time, so the total time complexity is 
+ bounded by the number of entries in the table times the number of
 table lookups it takes to compute one entry in the table.
 
 The size of the node table is trivial to upper bound. There are $2k+2$
@@ -254,38 +254,38 @@ before ($\le s_i + 1 | i=1..k$), and $k$ dimensions for the number of
 nodes in each block that have gone before and selected yes ($\le s_i +
 1 | i=1..k$). This leads to the following statement,
 \begin{align*}
-  NodeTableSize &= o\left( 2k \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
+  NodeTableSize &= O\left( 2k \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
   \right) \\
-  &= o\left( k \prod_{i=1}^k s_i^2 \right)
+  &= O\left( k \prod_{i=1}^k s_i^2 \right)
   \intertext{If we further assume that $\ell \le k$ of
     the blocks are size order $n$ and the rest are constant size, then the
     size of the table reduces to}
-  NodeTableSize &= o\left( kn^{2\ell} \right)
+  NodeTableSize &= O\left( kn^{2\ell} \right)
   \intertext{Each node table entry
     computation takes 2 calls to the sched function, and then does
     computation of the expected number of Yeses which is order $k$,
     making the total complexity for the node table given the sched
     table}
-  NodeTableComplexity &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
-  &= o\left( k^2 n^{2\ell} \right)
+  NodeTableComplexity &= O\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
+  &= O\left( k^2 n^{2\ell} \right)
   \intertext{The size of the scheduler table is also trivial to upper
     bound. There are $2k$ dimensions similar to the node table. By
     similar reasoning}
-  SchedTableSize &= o\left( \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
+  SchedTableSize &= O\left( \prod_{i=1}^k s_i+1 \prod_{i=1}^k s_i+1
   \right) \\
-  &= o\left( \prod_{i=1}^k s_i^2 \right)
+  &= O\left( \prod_{i=1}^k s_i^2 \right)
   \intertext{If we make the same assumption about block sizes this
     reduces to}
-  SchedTableSize &= o \left( n^{2\ell} \right)
+  SchedTableSize &= O \left( n^{2\ell} \right)
   \intertext{The complexity for each entry in the scheduler table is
     linear in $k$, because it makes $2k$ lookups to the node
     table. Therefore the total complexity for constructing the
     scheduler table is bounded by}
-  SchedTableComplexity &= o\left( k \prod_{i=1}^k s_i^2 \right) \\
-  &= o \left( k n^{2\ell} \right)
+  SchedTableComplexity &= O\left( k \prod_{i=1}^k s_i^2 \right) \\
+  &= O \left( k n^{2\ell} \right)
   \intertext{This leaves us with final time complexity of}
-  RunningTime &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
-  &= o\left( k^2 n^{2\ell} \right)
+  RunningTime &= O\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
+  &= O\left( k^2 n^{2\ell} \right)
 \end{align*}
 
 Similarly the node table is the larger of the two tables, and has space
@@ -443,7 +443,7 @@ the plots where myopic superiority switches in favor of strategic
 agents.
 
 We have only shown a polynomial time algorithm for graphs where the
-number of blocks is constant with respect to $N$. A further and
+number of blocks is constant with respect to $n$. A further and
 important step would be to come up with an algorithm for general
 graphs, or to reduce the problem to another complexity class like PPAD
 or NP.
