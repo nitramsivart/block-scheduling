@@ -1,6 +1,7 @@
 \documentclass{article}
 
 \usepackage{natbib}
+\usepackage{array}
 \usepackage{graphicx}
 \usepackage{amsfonts}
 \usepackage{amsmath}
@@ -83,10 +84,10 @@ is a risk neutral rational agent. Each node is also assigned a binary
 type which affects their utility, pulled from a binomial
 distribution. In this paper we call the types Yes ($Y$) and No
 ($N$). There is an additional scheduler agent, which, at each round of
-the game picks one of the nodes in the graph. At that moment the
-chosen node chooses to commit to a choice (also Yes or No) and the
-agent is committed to that choice for the rest of the game. The game
-ends when all nodes have committed to a choice.
+the game picks one of the nodes in the graph. The chosen node picks a
+``choice'' (also Yes or No) and the agent is committed to that
+``choice'' for the rest of the game. The game ends when all nodes have
+picked a ``choice.''
 
 We keep the same scheduler behavior as in the previous paper. The
 schedulers utility is based off of the number of nodes that choose Yes
@@ -130,19 +131,20 @@ The full game can be described by the following algorithm. The
 scheduler picks an optimal first node in the graph. That node chooses
 either Yes or No based on all of the parameters and its
 knowledge. Based on this result the scheduler picks a new node, and so
-on until every node is chosen and the game finishes.
+on until every node has been picked and the game finishes.
 
 Given this game, we are interested in quantifying
 \begin{equation*}
-  \frac{\mathbb E[\#Y|strategic]}{\mathbb E[\#Y|myopic]}.
+  \frac{\mathbb E[\#Y|strategic]}{\mathbb E[\#Y|myopic]}
 \end{equation*}
+for a given family of graphs with different game parameters.
 
 Is seems likely that computing the strategic choices and payouts is a
 hard problem, but we will show an algorithm that can compute an
 optimal online schedule and calculate $\mathbb E[\#Y|stragetic]$ in
 polynomial time for arbitrary block models.
 
-A graph is a $k$-block model is the vertices can be divided into $k$
+A graph is a $k$-block model if the vertices can be divided into $k$
 disjoint subsets such that every node in the same subset has
 incoming and outgoing edges to the same set of nodes. Another way to
 view this property is by looking at the adjacency matrix of the
@@ -152,6 +154,20 @@ with $k^2$ blocks. For the sake of the algorithm, we will define
   \{s_i\}_{i=1..k}
 \end{equation*}
 as the number of nodes in each block.
+
+An example of a 2-block model would be the star graph, which can be
+expressed in adjacency matrix form as
+\begin{equation*}
+  \begin{array}{r}
+    1 \{ \\
+    n-1 \{
+  \end{array}
+  \left[ \begin{array}{cc}
+      0 & 1 \\
+      1 & 0
+      \end{array} \right]
+\end{equation*}
+and has $\mathbf s = \{1, n-1\}$.
 
 \section{Algorithm}
 \label{sec:algorithm}
@@ -251,7 +267,7 @@ nodes in each block that have gone before and selected yes ($\le s_i +
     making the total complexity for the node table given the sched
     table}
   NodeTableComplexity &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
-  NodeTableComplexity &= o\left( k^2 n^{2\ell} \right)
+  &= o\left( k^2 n^{2\ell} \right)
   \intertext{The size of the scheduler table is also trivial to upper
     bound. There are $2k$ dimensions similar to the node table. By
     similar reasoning}
@@ -266,7 +282,7 @@ nodes in each block that have gone before and selected yes ($\le s_i +
     table. Therefore the total complexity for constructing the
     scheduler table is bounded by}
   SchedTableComplexity &= o\left( k \prod_{i=1}^k s_i^2 \right) \\
-  SchedTableComplexity &= o \left( k n^{2\ell} \right)
+  &= o \left( k n^{2\ell} \right)
   \intertext{This leaves us with final time complexity of}
   RunningTime &= o\left( k^2 \prod_{i=1}^k s_i^2 \right) \\
   &= o\left( k^2 n^{2\ell} \right)
@@ -276,23 +292,82 @@ Similarly the node table is the larger of the two tables, and has space
 complexity equal to time complexity.
 
 \section{Results \& Discussion}
-We implemented our dynamic program algorithm and ran it on several categories of graphs in order to guide intuition for theoretical work regarding this problem. Our primary concern was the difference in expected number of Yes decisions for the optimal adaptive schedule given strategic or myopic users. We aim to characterize situations under which strategic users give more Yes decisions than myopic users, or vice versa. Our secondary concern was testing the predicted computational complexity of our algorithms.
+We implemented our dynamic program algorithm and ran it on several
+categories of graphs in order to guide intuition for theoretical work
+regarding this problem. Our primary concern was the difference in
+expected number of Yes decisions for the optimal adaptive schedule
+given strategic or myopic users. We aim to characterize situations
+under which strategic users give more Yes decisions than myopic users,
+or vice versa. Our secondary concern was testing the predicted
+computational complexity of our algorithms.
 
-We test a star graph, a clique, and a special graph we call a cloud graph. A cloud graph consists of two singular vertices of degree one, one singular vertex of degree two, and two clouds of many vertices, each of degree two. Each of the singular degree one vertices is connected to every node in a distinct cloud. The singular degree two vertex is connected to every node in both clouds. This graph, under certain parameters, provably obtains more $Y$ adoptions for strategic users.
+We test a star graph, a clique, and a special graph we call a cloud
+graph. A cloud graph consists of two singular ``outer'' vertices of
+degree $a$ and $b$ respectively, one singular ``inner'' vertex of
+degree $a+b$, and two clouds of size $a$ and $b$ respectively, with
+each vertex of degree two. Each of the ``outer'' vertices is connected
+to every node in a distinct cloud. The singular ``inner'' vertex is
+connected to every node in both clouds. This graph, under certain
+parameters, provably obtains more $Y$ adoptions for strategic users.
 
-We examine the ratio of expected number of $Y$s between strategic and myopic while varying the parameters $p, \pi, n$. Colorplots of the ratio for the set value $n=10$ but varying $p, \pi$ can be found in Figure~\ref{fig:ratio}. The primary lesson we learned from Figure~\ref{fig:ratio} is that the behavior on these graphs is extremely complex. There appears to be no clear general characterization of how the ratio will behave.
+We examine the ratio of expected number of $Y$s between strategic and
+myopic while varying the parameters $p, \pi, n$. Colorplots of the
+ratio for the set value $n=10$ but varying $p, \pi$ can be found in
+Figure~\ref{fig:ratio}. The primary lesson we learned from
+Figure~\ref{fig:ratio} is that the behavior on these graphs is
+extremely complex. There appears to be no clear general
+characterization of how the ratio will behave.
 
-Though these plots provide little obvious insight into the general case of graphs, we can extract valuable information about specific behaviors and provide some upper and lower bounds on the extremes of the ratio.
+Though these plots provide little obvious insight into the general
+case of graphs, we can extract valuable information about specific
+behaviors and provide some upper and lower bounds on the extremes of
+the ratio.
 
-The ratio is increasing in $p$ for the star graph, decreasing in $p$ for the clique, and both (depending on $\pi$) for the cloud graph. Even more strangely, the ratio is (mostly) increasing in $\pi$ for the star graph but depends on the $p$ value for the clique and cloud graphs. We see markedly different behavior when $\pi = 1$. This is the point at which agents are indifferent between choosing their own type and going with the expected majority. This indifference is unique to $\pi=1$, as our tie breaking methods lead to significant differences in outcome.
+The ratio is increasing in $p$ for the star graph, decreasing in $p$
+for the clique, and both (depending on $\pi$) for the cloud
+graph. Even more strangely, the ratio is (mostly) increasing in $\pi$
+for the star graph but depends on the $p$ value for the clique and
+cloud graphs. We see markedly different behavior when $\pi = 1$. This
+is the point at which agents are indifferent between choosing their
+own type and going with the expected majority. This indifference is
+unique to $\pi=1$, as our tie breaking methods lead to significant
+differences in outcome (nodes pick No in the event of a tie).
 
-We learn several things regarding the question of whether strategic agents can ever give more $Y$ adoptions than myopic agents. Data for the star graph supports our theoretical result that myopic is always better on the star graph (and thus the ratio is bounded by 1). The clique plot suggests an interesting result. For small $p, \pi$, strategic is better than myopic. This is an unexpected, but explainable result. For $\pi=1+\epsilon$, only 1 $Y$ decision is required to start a $ƒ$ cascade with strategic users, but 2 $Y$ decisions are required with myopic users. So the ratio can be as large as $\frac{1}{p}$. We also confirm some cascade proofs we've had for the clique and cloud graphs, namely that we can achieve either a $Y$ or an $N$ cascade on the cloud graph, depending on the parameters, and that for many parameters the clique achieves an $N$ cascade.
+We learn several things regarding the question of whether strategic
+agents can ever give more $Y$ adoptions than myopic agents. Data for
+the star graph supports our theoretical result that myopic is always
+better on the star graph (and thus the ratio is bounded by 1). The
+clique plot suggests an interesting result. For small $p, \pi$,
+strategic is better than myopic. This is an unexpected, but
+explainable result. For $\pi=1+\epsilon$, only 1 $Y$ decision is
+required to start a $Y$ cascade with strategic users, but 2 $Y$ decisions
+are required with myopic users. So the ratio can be as large as
+$\frac{1}{p}$. We also confirm some cascade proofs we've had for the
+clique and cloud graphs, namely that we can achieve either a $Y$ or an
+$N$ cascade on the cloud graph, depending on the parameters, and that
+for many parameters the clique achieves an $N$ cascade.
 
-We leave out plots which vary $n$, in the interest of space, but these plots give similarly varied results.
+We leave out plots which vary $n$, in the interest of space, but these
+plots give similarly varied results.
 
-Careful analysis of plots in Figure~\ref{fig:ratio} reveals that our graphs have sharp bands of color in which small changes in $p$ or $\pi$ result in drastic changes in ratio. We graph numerical values in Figure~\ref{fig:ratio2} in order to investigate this phenomenon on the star graph. Drastic ratio changes correspond to changes in fundamental behavior of strategic nodes on the star. For example, as $p$ or $pi$ get larger, the situations under which a strategic $Y$ type edge node might choose $N$ change. For low enough $\pi$ (on the star graph), $Y$ type nodes will choose $N$ after only one edge node has chosen $N$. As $\pi$ rises, this stubbornness threshold also rises in discrete jumps as seen on the graph.
+Careful analysis of plots in Figure~\ref{fig:ratio} reveals that our
+graphs have sharp bands of color in which small changes in $p$ or
+$\pi$ result in drastic changes in ratio. We graph numerical values in
+Figure~\ref{fig:ratio2} in order to investigate this phenomenon on the
+star graph. Drastic ratio changes correspond to changes in fundamental
+behavior of strategic nodes on the star. For example, as $p$ or $pi$
+get larger, the situations under which a strategic $Y$ type edge node
+might choose $N$ change. For low enough $\pi$ (on the star graph), $Y$
+type nodes will choose $N$ after only one edge node has chosen $N$. As
+$\pi$ rises, this stubbornness threshold also rises in discrete jumps
+as seen on the graph.
 
-Lastly, we investigate the computational complexity of our algorithm in Figure~\ref{fig:time} by measuring computation time over varied graph sizes. We time the star graph, which has one block that scales with $n$, and the cloud graph, which has two blocks that scale with $n$. As predicted, running time is quadratic for the star graph and quartic for the cloud graph.
+Lastly, we investigate the computational complexity of our algorithm
+in Figure~\ref{fig:time} by measuring computation time over varied
+graph sizes. We time the star graph, which has one block that scales
+with $n$, and the cloud graph, which has two blocks that scale with
+$n$. As predicted, running time is quadratic for the star graph and
+quartic for the cloud graph.
 
 \begin{figure}
         \centering
@@ -354,40 +429,34 @@ Lastly, we investigate the computational complexity of our algorithm in Figure~\
 
 \section{Future Work}
 
-Talk about the significance, patterns, stuff like that that? Talk
-about future work in quantifying for general graphs, although it may
-not be possible?? At least in some nice form.
+Our results are interesting and certainly show that the difference
+between optimal play with myopic and strategic users is a complex
+space even very simple block graphs. However, there are still a number
+of interesting unexplored questions that we have not looked at in the
+scope of the problem.
 
-Patterns may not exist, but there may still be order level
-relationships / bounds that are possible.
+Despite the fact that obvious patterns don't exist in the performance
+ratio, it is still possible that the performance ratio can be bounded
+in certain circumstance beyond the star graph. Proving bounds on the
+performance ratio could help characterize the discontinuous regions in
+the plots where myopic superiority switches in favor of strategic
+agents.
 
-See if we can prove the problem is PPAD or NP-complete.
+We have only shown a polynomial time algorithm for graphs where the
+number of blocks is constant with respect to $N$. A further and
+important step would be to come up with an algorithm for general
+graphs, or to reduce the problem to another complexity class like PPAD
+or NP.
 
-Offline scheduling
-
-There are a number of possible extensions for this algorithm that
-should also broaden the class of graphs that our results could apply
-to. These extensions include scaling to $k$-block graphs, directed
-graphs, and stochastic block graphs. Extending the algorithm to
-$k$-block graphs shouldn’t conceptually change the algorithm, but we
-believe that the original algorithm may scale exponentially in $k$ for
-a $k$-block graph. However, for bounded $k$, the complexity is still
-be moderately efficient. Additionally, scaling the algorithm up to
-$k$-blocks may expose room for improvement in the algorithm and
-provide further insight into quantifying the difference between myopic
-and strategic agents in this setting. Modifying the algorithm to
-account for directed graphs as long as they still fit into a
-blockmodel is also likely trivial and would further increase the
-number of graphs that we can analyze theoretically although the
-applicability of directed graphs is not immediately apparent. Another
-potentially easy extension of this would be to look at stochastic
-blockmodels\cite{Wang87, Snijders97}. It seems reasonable that the
-algorithm for static block graph models might extend in expectation to
-unrealized (and hence offline scheduled) stochastic blockmodels. This
-extension could likely never extend to realized graphs or to online
-schedules, but stochastic blockmodels are much closer to graphs found
-experimentally than $k$-block graphs.
-
+The algorithm as it is presented only works for online
+scheduling. This is a necessary condition to allow the dynamic
+programming to work, however ongoing research may suggest that for
+offline scheduling, myopic agents will always permit a higher number
+of Yes nodes. Looking at performance bounds under offline scheduling
+could pose an viable avenue to study performance difference where
+online schedules became very complicated. It is not apparent how to
+compute an optimal offline schedule efficiently for a block graph or
+otherwise.
 
 \bibliographystyle{plain}
 \bibliography{references}
